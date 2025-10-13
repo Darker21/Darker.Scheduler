@@ -1,0 +1,44 @@
+# .NET build artifacts
+bin/
+obj/
+
+# User-specific files
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# VS Code
+.vscode/
+
+# Rider
+.idea/
+*.sln.iml
+
+# NuGet packages
+*.nupkg
+# NuGet restore
+packages/
+# DotCover
+*.dotCover
+
+# Logs
+*.log
+
+# Database
+*.db
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Others
+*.vspscc
+*.vssscc
+_ReSharper*/
+
+# Static web assets
+**/wwwroot/staticwebassets/
+
+# Publish output
+publish/

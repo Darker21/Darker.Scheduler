@@ -1,0 +1,166 @@
+@page "/schedules"
+@using Darker.Scheduler.Data.Context
+@using Darker.Scheduler.Data.Models
+@using Microsoft.EntityFrameworkCore
+@inject SchedulerDbContext Db
+
+<h3>Schedules</h3>
+
+<button class="btn btn-primary mb-2" @onclick="ShowCreateModal">New Schedule</button>
+
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th>Name</th>
+            <th>Establishment</th>
+            <th>Cron</th>
+            <th>Max Days</th>
+            <th>Active</th>
+            <th>Options</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var sched in schedules)
+        {
+            <tr>
+                <td>@sched.Name</td>
+                <td>@sched.Establishment?.Name</td>
+                <td>@sched.CronExpression</td>
+                <td>@sched.MaxDaysInAdvance</td>
+                <td>@(sched.IsActive ? "Yes" : "No")</td>
+                <td>
+                    <button class="btn btn-sm btn-secondary" @onclick="() => ShowEditModal(sched)">Edit</button>
+                    <button class="btn btn-sm btn-danger" @onclick="() => ToggleActive(sched.Id)">@((sched.IsActive ? "Deactivate" : "Activate"))</button>
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+@if (showModal)
+{
+    <div class="modal show d-block" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">@((editEntity == null ? "New" : "Edit") + " Schedule")</h5>
+                    <button type="button" class="btn-close" @onclick="HideModal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label>Name</label>
+                        <input class="form-control" @bind="modalEntity.Name" />
+                    </div>
+                    <div class="mb-3">
+                        <label>Establishment</label>
+                        <select class="form-control" @bind="modalEntity.EstablishmentId">
+                            @foreach (var est in establishments)
+                            {
+                                <option value="@est.Id">@est.Name</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label>Cron Expression</label>
+                        <input class="form-control" @bind="modalEntity.CronExpression" />
+                    </div>
+                    <div class="mb-3">
+                        <label>Max Days In Advance</label>
+                        <input type="number" class="form-control" @bind="modalEntity.MaxDaysInAdvance" />
+                    </div>
+                    <div class="mb-3">
+                        <label>Configuration (JSON)</label>
+                        <textarea class="form-control" @bind="modalEntity.Configuration"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label>Active</label>
+                        <input type="checkbox" class="form-check-input" @bind="modalEntity.IsActive" />
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-primary" @onclick="Save">Save</button>
+                    <button class="btn btn-secondary" @onclick="HideModal">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="modal-backdrop show"></div>
+}
+
+@code {
+    List<Schedule> schedules = new();
+    List<Establishment> establishments = new();
+    bool showModal = false;
+    Schedule? editEntity;
+    Schedule modalEntity = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        schedules = await Db.Schedules.Include(s => s.Establishment).ToListAsync();
+        establishments = await Db.Establishments.ToListAsync();
+    }
+
+    void ShowCreateModal()
+    {
+        editEntity = null;
+        modalEntity = new Schedule();
+        showModal = true;
+    }
+
+    void ShowEditModal(Schedule sched)
+    {
+        editEntity = sched;
+        modalEntity = new Schedule {
+            Id = sched.Id,
+            Name = sched.Name,
+            EstablishmentId = sched.EstablishmentId,
+            CronExpression = sched.CronExpression,
+            MaxDaysInAdvance = sched.MaxDaysInAdvance,
+            Configuration = sched.Configuration,
+            IsActive = sched.IsActive
+        };
+        showModal = true;
+    }
+
+    async void Save()
+    {
+        if (editEntity == null)
+        {
+            Db.Schedules.Add(modalEntity);
+        }
+        else
+        {
+            var entity = await Db.Schedules.FindAsync(modalEntity.Id);
+            if (entity != null)
+            {
+                entity.Name = modalEntity.Name;
+                entity.EstablishmentId = modalEntity.EstablishmentId;
+                entity.CronExpression = modalEntity.CronExpression;
+                entity.MaxDaysInAdvance = modalEntity.MaxDaysInAdvance;
+                entity.Configuration = modalEntity.Configuration;
+                entity.IsActive = modalEntity.IsActive;
+            }
+        }
+        await Db.SaveChangesAsync();
+        schedules = await Db.Schedules.Include(s => s.Establishment).ToListAsync();
+        HideModal();
+        StateHasChanged();
+    }
+
+    async void ToggleActive(int id)
+    {
+        var entity = await Db.Schedules.FindAsync(id);
+        if (entity != null)
+        {
+            entity.IsActive = !entity.IsActive;
+            await Db.SaveChangesAsync();
+            schedules = await Db.Schedules.Include(s => s.Establishment).ToListAsync();
+            StateHasChanged();
+        }
+    }
+
+    void HideModal()
+    {
+        showModal = false;
+    }
+}
