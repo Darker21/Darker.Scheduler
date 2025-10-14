@@ -10,7 +10,7 @@ The end goal is to have a solution which supports trusted DLL's/Exe's with a not
 
 ## Solution Structure
 
-- **Darker.Scheduler.Blaze**: Blazor Server web app for CRUD management of establishments, schedules, and orders.
+- **Darker.Scheduler.Muddy**: Blazor Server web app using MudBlazor for CRUD management of establishments, schedules, and orders.
 - **Darker.Scheduler.ConsoleApp**: Console application for executing automated stock processes.
 - **Darker.Scheduler.Core**: Core business logic and service abstractions.
 - **Darker.Scheduler.TrayApp**: WinForms tray application for controlling the web server and scheduler service processes.
@@ -36,7 +36,7 @@ The end goal is to have a solution which supports trusted DLL's/Exe's with a not
 1. **Clone the repository**
 2. **Restore dependencies**: `dotnet restore`
 3. **Build the solution**: `dotnet build`
-4. **Run the web app**: `dotnet run --project Darker.Scheduler.Blaze`
+4. **Run the web app**: `dotnet run --project Darker.Scheduler.Muddy`
 5. **Run the tray app**: `dotnet run --project Darker.Scheduler.TrayApp`
 6. **Run the scheduler service**: `dotnet run --project Darker.Scheduler.SchedulerService`
 
@@ -57,7 +57,7 @@ The end goal is to have a solution which supports trusted DLL's/Exe's with a not
 
 - Add new entity types by creating models and updating `SchedulerDbContext`.
 - Extend business logic in the Core project.
-- Add new UI pages in Blaze for additional features.
+- Add new UI pages in MudBlazor for additional features.
 
 ## License
 
