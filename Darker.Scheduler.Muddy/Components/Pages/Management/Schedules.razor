@@ -1,0 +1,142 @@
+@page "/management/schedules"
+@using Darker.Scheduler.Data.Context
+@using Darker.Scheduler.Data.Models
+@using Darker.Scheduler.Muddy.Components.Dialogs
+@using Microsoft.EntityFrameworkCore
+@using MudBlazor
+@inject SchedulerDbContext Db
+@inject IDialogService DialogService
+
+<MudPaper Class="pa-4">
+    <MudTable Items="schedules" Hover="true" SortLabel="Sort" Sortable="true"
+        Filter="new Func<Schedule, bool>(FilterSchedules)">
+        <ToolBarContent>
+            <MudText Typo="Typo.h5">Schedules</MudText>
+            <MudSpacer />
+            <MudTextField @bind-Value="_searchString" Placeholder="Search" Adornment="Adornment.Start"
+                AdornmentIcon="@Icons.Material.Filled.Search" Class="mt-0"></MudTextField>
+            <MudSpacer />
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="ShowCreateDialog" Class="mb-2">New
+                Schedule
+            </MudButton>
+        </ToolBarContent>
+        <HeaderContent>
+            <MudTh>Name</MudTh>
+            <MudTh>Establishment</MudTh>
+            <MudTh>Cron</MudTh>
+            <MudTh>Max Days</MudTh>
+            <MudTh>
+                <MudTableSortLabel SortBy="new Func<Schedule, object>(x => x.IsActive ? 1 : 0)"
+                    InitialDirection="SortDirection.Descending">Active</MudTableSortLabel>
+            </MudTh>
+            <MudTh>Options</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd>@context.Name</MudTd>
+            <MudTd>@context.Establishment?.Name</MudTd>
+            <MudTd>@context.CronExpression</MudTd>
+            <MudTd>@context.MaxDaysInAdvance</MudTd>
+            <MudTd>
+                <MudChip T="bool" Color="@(context.IsActive? Color.Success: Color.Error)"
+                    Icon="@(context.IsActive ? Icons.Material.Filled.Check : Icons.Material.Filled.Clear)">
+                    @(context.IsActive ? "Yes" : "No")</MudChip>
+            </MudTd>
+            <MudTd>
+                <MudButton Variant="Variant.Outlined" Color="Color.Secondary" Size="Size.Small"
+                    OnClick="@(() => ShowEditDialog(context))">Edit</MudButton>
+                <MudButton Variant="Variant.Outlined" Color="Color.Error" Size="Size.Small"
+                    OnClick="@(() => ToggleActive(context.Id))">@((context.IsActive ? "Deactivate" : "Activate"))
+                </MudButton>
+            </MudTd>
+        </RowTemplate>
+    </MudTable>
+</MudPaper>
+
+@code {
+    private string _searchString = "";
+    List<Schedule> schedules = new();
+    List<Establishment> establishments = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        schedules = await Db.Schedules.Include(s => s.Establishment).ToListAsync();
+        establishments = await Db.Establishments.ToListAsync();
+    }
+
+    async Task ShowCreateDialog()
+    {
+        var parameters = new DialogParameters { ["Entity"] = new Schedule(), ["Establishments"] = establishments };
+        var dialog = await DialogService.ShowAsync<ScheduleDialog>("New Schedule", parameters);
+        var result = await dialog.Result;
+        if (result is { Canceled: false, Data: Schedule })
+        {
+            Db.Schedules.Add((Schedule)result.Data);
+            await Db.SaveChangesAsync();
+            schedules = await Db.Schedules.Include(s => s.Establishment).ToListAsync();
+            StateHasChanged();
+        }
+    }
+
+    async Task ShowEditDialog(Schedule sched)
+    {
+        var parameters = new DialogParameters
+        {
+            ["Entity"] = new Schedule
+            {
+                Id = sched.Id,
+                Name = sched.Name,
+                EstablishmentId = sched.EstablishmentId,
+                CronExpression = sched.CronExpression,
+                MaxDaysInAdvance = sched.MaxDaysInAdvance,
+                Configuration = sched.Configuration,
+                IsActive = sched.IsActive
+            },
+            ["Establishments"] = establishments
+        };
+        var dialog = await DialogService.ShowAsync<ScheduleDialog>("Edit Schedule", parameters);
+        var result = await dialog.Result;
+        if (result is { Canceled: false, Data: Schedule })
+        {
+            var entity = await Db.Schedules.FindAsync(sched.Id);
+            if (entity != null)
+            {
+                entity.Name = ((Schedule)result.Data).Name;
+                entity.EstablishmentId = ((Schedule)result.Data).EstablishmentId;
+                entity.CronExpression = ((Schedule)result.Data).CronExpression;
+                entity.MaxDaysInAdvance = ((Schedule)result.Data).MaxDaysInAdvance;
+                entity.Configuration = ((Schedule)result.Data).Configuration;
+                entity.IsActive = ((Schedule)result.Data).IsActive;
+                await Db.SaveChangesAsync();
+                schedules = await Db.Schedules.Include(s => s.Establishment).ToListAsync();
+                StateHasChanged();
+            }
+        }
+    }
+
+    async Task ToggleActive(int id)
+    {
+        var entity = await Db.Schedules.FindAsync(id);
+        if (entity != null)
+        {
+            entity.IsActive = !entity.IsActive;
+            await Db.SaveChangesAsync();
+            schedules = await Db.Schedules.Include(s => s.Establishment).ToListAsync();
+            StateHasChanged();
+        }
+    }
+
+    private bool FilterSchedules(Schedule schedule)
+    {
+        if (string.IsNullOrWhiteSpace(_searchString))
+            return true;
+        if (schedule.Name.Contains(_searchString, StringComparison.OrdinalIgnoreCase))
+            return true;
+        if (schedule.Establishment != null && schedule.Establishment.Name.Contains(_searchString,
+        StringComparison.OrdinalIgnoreCase))
+            return true;
+        if (schedule.Establishment != null && (Enum.GetName(schedule.Establishment.Type)?.Contains(_searchString,
+        StringComparison.OrdinalIgnoreCase) ?? false))
+            return true;
+        return false;
+    }
+}

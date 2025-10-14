@@ -1,0 +1,107 @@
+@page "/management/orders"
+@using Darker.Scheduler.Data.Context
+@using Darker.Scheduler.Data.Models
+@using Darker.Scheduler.Muddy.Components.Dialogs
+@using Microsoft.EntityFrameworkCore
+@using MudBlazor
+@inject SchedulerDbContext Db
+@inject IDialogService DialogService
+
+<MudPaper Class="pa-4">
+
+    <MudGrid Spacing="0" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-2">
+        <MudText Typo="Typo.h5">Orders</MudText>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="ShowCreateDialog" Class="mb-2">New Order
+        </MudButton>
+    </MudGrid>
+    <MudTable Items="orders" Hover="true" SortLabel="Sort" Sortable="true">
+        <HeaderContent>
+            <MudTh><MudTableSortLabel SortBy="new Func<Schedule, object>(x => x.Name)"> Schedule </MudTableSortLabel></MudTh>
+            <MudTh>Created At</MudTh>
+            <MudTh>Details</MudTh>
+            <MudTh>Options</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd>@context.Schedule?.Name</MudTd>
+            <MudTd>@context.CreatedAt.ToString("g")</MudTd>
+            <MudTd>@context.Details</MudTd>
+            <MudTd>
+                <MudButton Variant="Variant.Outlined" Color="Color.Secondary" Size="Size.Small"
+                    OnClick="@(() => ShowEditDialog(context))">Edit</MudButton>
+                <MudButton Variant="Variant.Outlined" Color="Color.Error" Size="Size.Small"
+                    OnClick="@(() => Delete(context.Id))">Delete</MudButton>
+            </MudTd>
+        </RowTemplate>
+    </MudTable>
+</MudPaper>
+
+@code {
+    List<Order> orders = new();
+    List<Schedule> schedules = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        orders = await Db.Orders.Include(o => o.Schedule).ToListAsync();
+        schedules = await Db.Schedules.ToListAsync();
+    }
+
+    async Task ShowCreateDialog()
+    {
+        var parameters = new DialogParameters
+        {
+            ["Entity"] = new Order { CreatedAt = DateTime.Now },
+            ["Schedules"] = schedules
+        };
+        var dialog = await DialogService.ShowAsync<OrderDialog>("New Order", parameters);
+        var result = await dialog.Result;
+        if (result is { Canceled: false, Data: Order })
+        {
+            Db.Orders.Add((Order)result.Data);
+            await Db.SaveChangesAsync();
+            orders = await Db.Orders.Include(o => o.Schedule).ToListAsync();
+            StateHasChanged();
+        }
+    }
+
+    async Task ShowEditDialog(Order order)
+    {
+        var parameters = new DialogParameters
+        {
+            ["Entity"] = new Order
+            {
+                Id = order.Id,
+                ScheduleId = order.ScheduleId,
+                CreatedAt = order.CreatedAt,
+                Details = order.Details
+            },
+            ["Schedules"] = schedules
+        };
+        var dialog = await DialogService.ShowAsync<OrderDialog>("Edit Order", parameters);
+        var result = await dialog.Result;
+        if (result is { Canceled: false, Data: Order })
+        {
+            var entity = await Db.Orders.FindAsync(order.Id);
+            if (entity != null)
+            {
+                entity.ScheduleId = ((Order)result.Data).ScheduleId;
+                entity.CreatedAt = ((Order)result.Data).CreatedAt;
+                entity.Details = ((Order)result.Data).Details;
+                await Db.SaveChangesAsync();
+                orders = await Db.Orders.Include(o => o.Schedule).ToListAsync();
+                StateHasChanged();
+            }
+        }
+    }
+
+    async Task Delete(int id)
+    {
+        var entity = await Db.Orders.FindAsync(id);
+        if (entity != null)
+        {
+            Db.Orders.Remove(entity);
+            await Db.SaveChangesAsync();
+            orders = await Db.Orders.Include(o => o.Schedule).ToListAsync();
+            StateHasChanged();
+        }
+    }
+}

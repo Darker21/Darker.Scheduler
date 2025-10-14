@@ -1,0 +1,117 @@
+@page "/management/establishments"
+@using Darker.Scheduler.Data.Context
+@using Darker.Scheduler.Data.Models
+@using Microsoft.EntityFrameworkCore
+@using MudBlazor
+@using static MudBlazor.Icons.Material
+@using Darker.Scheduler.Muddy.Components.Dialogs
+@using System.Runtime.CompilerServices
+@inject SchedulerDbContext Db
+@inject IDialogService DialogService
+
+<MudPaper Class="pa-4">
+
+    <MudGrid Spacing="0" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-2">
+        <MudText Typo="Typo.h5">Establishments</MudText>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="ShowCreateDialog" Class="mb-2">New
+            Establishment</MudButton>
+    </MudGrid>
+    <MudTable Items="establishments" SortLabel="Sort By" Hover="true"
+        Filter="new Func<Establishment, bool>(FilterEstablishment)">
+        <ToolBarContent>
+            <MudTextField @bind-Value="searchString" Placeholder="Search" Adornment="Adornment.Start"
+                AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0" />
+        </ToolBarContent>
+        <HeaderContent>
+            <MudTh>
+                <MudTableSortLabel SortBy="new Func<Schedule, object>(x => x.Name)">Name</MudTableSortLabel>
+            </MudTh>
+            <MudTh>Type</MudTh>
+            <MudTh>Options</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd>@context.Name</MudTd>
+            <MudTd>
+                <MudChip T="EstablishmentType"
+                    Icon="@(context.Type switch { EstablishmentType.Bar => Icons.Material.Filled.WineBar, EstablishmentType.Restaurant => Icons.Material.Filled.Restaurant, _ => Icons.Material.Filled.Help })"
+                    Color="@(context.Type switch { EstablishmentType.Bar => Color.Primary, EstablishmentType.Restaurant => Color.Secondary, _ => Color.Transparent})">
+                    @context.Type</MudChip>
+            </MudTd>
+            <MudTd>
+                <MudButton Variant="Variant.Outlined" Color="Color.Secondary" Size="Size.Small"
+                    OnClick="@(() => ShowEditDialog(context))">Edit</MudButton>
+                <MudButton Variant="Variant.Outlined" Color="Color.Error" Size="Size.Small"
+                    OnClick="@(() => Delete(context.Id))">Delete</MudButton>
+            </MudTd>
+        </RowTemplate>
+    </MudTable>
+</MudPaper>
+
+@code {
+    private string searchString = "";
+    List<Establishment> establishments = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        establishments = await Db.Establishments.ToListAsync();
+    }
+
+    async Task ShowCreateDialog()
+    {
+        var parameters = new DialogParameters { ["Entity"] = new Establishment() };
+        var dialog = await DialogService.ShowAsync<EstablishmentDialog>("New Establishment", parameters);
+        var result = await dialog.Result;
+        if (result is { Canceled: false, Data: Establishment })
+        {
+            Db.Establishments.Add((Establishment)result.Data);
+            await Db.SaveChangesAsync();
+            establishments = await Db.Establishments.ToListAsync();
+            StateHasChanged();
+        }
+    }
+
+    async Task ShowEditDialog(Establishment est)
+    {
+        var parameters = new DialogParameters
+        {
+            ["Entity"] = new Establishment { Id = est.Id, Name = est.Name, Type = est.Type }
+        };
+        var dialog = await DialogService.ShowAsync<EstablishmentDialog>("Edit Establishment", parameters);
+        var result = await dialog.Result;
+        if (result is not null && !result.Canceled && result.Data is Establishment)
+        {
+            var entity = await Db.Establishments.FindAsync(est.Id);
+            if (entity != null)
+            {
+                entity.Name = ((Establishment)result.Data).Name;
+                entity.Type = ((Establishment)result.Data).Type;
+                await Db.SaveChangesAsync();
+                establishments = await Db.Establishments.ToListAsync();
+                StateHasChanged();
+            }
+        }
+    }
+
+    async Task Delete(int id)
+    {
+        var entity = await Db.Establishments.FindAsync(id);
+        if (entity != null)
+        {
+            Db.Establishments.Remove(entity);
+            await Db.SaveChangesAsync();
+            establishments = await Db.Establishments.ToListAsync();
+            StateHasChanged();
+        }
+    }
+
+    private bool FilterEstablishment(Establishment est)
+    {
+        if (string.IsNullOrWhiteSpace(searchString))
+            return true;
+        if (est.Name.Contains(searchString, StringComparison.OrdinalIgnoreCase))
+            return true;
+        if (Enum.GetName(est.Type)?.Contains(searchString, StringComparison.OrdinalIgnoreCase) ?? false)
+            return true;
+        return false;
+    }
+}

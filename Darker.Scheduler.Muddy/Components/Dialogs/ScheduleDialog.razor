@@ -1,0 +1,47 @@
+@using MudBlazor
+@using Darker.Scheduler.Data.Models
+@inject MudBlazor.IDialogService MudDialog
+
+<MudDialog>
+    <DialogContent>
+        <MudText Typo="Typo.h6">@((Entity.Id == 0 ? "New" : "Edit") + " Schedule")</MudText>
+        <MudTextField @bind-Value="Entity.Name" Label="Name" Variant="Variant.Outlined" Class="mb-2" />
+        <MudSelect T="int" Label="Establishment" @bind-Value="Entity.EstablishmentId" Variant="Variant.Outlined" Class="mb-2">
+            @if (Establishments != null)
+            {
+                @foreach (var est in Establishments)
+                {
+                    <MudSelectItem Value="@est.Id">@est.Name</MudSelectItem>
+                }
+            }
+        </MudSelect>
+        <MudTextField @bind-Value="Entity.CronExpression" Label="Cron Expression" Variant="Variant.Outlined" Class="mb-2" />
+        <MudNumericField T="int" @bind-Value="Entity.MaxDaysInAdvance" Label="Max Days In Advance" Variant="Variant.Outlined" Class="mb-2" />
+        <MudTextField @bind-Value="Entity.Configuration" Label="Configuration (JSON)" Variant="Variant.Outlined" Class="mb-2" />
+        <MudSwitch T="bool" @bind-Checked="Entity.IsActive" Color="Color.Primary" Class="mb-2">Active</MudSwitch>
+    </DialogContent>
+    <DialogActions>
+        <MudButton Color="Color.Primary" OnClick="Submit">Save</MudButton>
+        <MudButton Color="Color.Secondary" OnClick="Cancel">Cancel</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] public required IMudDialogInstance MudDialogInstance { get; set; }
+
+    [Parameter]
+    public Schedule Entity { get; set; } = new();
+
+    [Parameter]
+    public List<Establishment> Establishments { get; set; } = new();
+
+    void Submit()
+    {
+        MudDialogInstance.Close(DialogResult.Ok(Entity));
+    }
+
+    void Cancel()
+    {
+        MudDialogInstance.Cancel();
+    }
+}
