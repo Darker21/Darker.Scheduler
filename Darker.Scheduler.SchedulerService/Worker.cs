@@ -30,7 +30,6 @@ public class Worker : BackgroundService
             }
             catch (OperationCanceledException)
             {
-                _logger.LogInformation("Scheduler Worker Service is stopping");
                 break;
             }
             catch (Exception ex)
@@ -39,6 +38,8 @@ public class Worker : BackgroundService
                 await Task.Delay(TimeSpan.FromMinutes(5), stoppingToken);
             }
         }
+
+        _logger.LogInformation("Scheduler Worker Service is stopping");
     }
 
     private async Task ProcessScheduledJobs()
